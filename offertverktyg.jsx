@@ -1,0 +1,615 @@
+import { useState } from "react";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+const todayStr = new Date().toISOString().split("T")[0];
+const plusDays = (n) => new Date(Date.now() + n * 86400000).toISOString().split("T")[0];
+let _id = 0;
+const uid = () => ++_id;
+
+function fmt(n) {
+  return Number(n).toLocaleString("sv-SE") + " kr";
+}
+function rowAmt(r) {
+  return r.qty * r.price * (1 - r.discount / 100);
+}
+
+// ─── Brand definitions ────────────────────────────────────────────────────────
+const BRANDS = {
+  lakartidningen: {
+    name: "Läkartidningen",
+    tagline: "Sveriges ledande medicinska tidskrift",
+    url: "lakartidningen.se",
+    primary: "#009BA3",
+    accent: "#8DC63F",
+    dark: "#006B70",
+    bg: "#E8F7F7",
+    why: [
+      { title: "Direkt till beslutande läkare", desc: "Når 80% av Sveriges läkarförbunds 45 000 medlemmar direkt i brevlådan – fem utgåvor per vecka." },
+      { title: "Hög trovärdighet", desc: "Sveriges ledande medicinska tidskrift sedan 1904, med 220 medicinska referenter och 350 experter." },
+      { title: "Rekordöppning i nyhetsbrev", desc: "Öppningsfrekvens över 40% – mer än dubbelt branschsnittet. 47 000 mottagare per utskick." },
+      { title: "Massiv digital räckvidd", desc: "200 000 unika besökare per vecka på Läkartidningen.se – sajten för Sveriges läkare." },
+    ],
+  },
+  energimiljo: {
+    name: "Energi & Miljö",
+    tagline: "Branschledande inom energi och hållbarhet",
+    url: "energi-miljo.se",
+    primary: "#326D32",
+    accent: "#FF8F00",
+    dark: "#1B4D1B",
+    bg: "#EAF4EA",
+    why: [
+      { title: "Branschens röst", desc: "Ledande fackmedium för energi- och miljöbranschen med decenniers förtroende och stark redaktionell profil." },
+      { title: "Beslutsfattare i fokus", desc: "Når chefer, ingenjörer och politiker som driver Sveriges energiomställning och klimatarbete." },
+      { title: "Hållbarhetsprofil", desc: "Starkt varumärke inom hållbarhet – perfekt positionering för aktörer i den gröna omställningen." },
+      { title: "Engagerad och köpstark målgrupp", desc: "Läsare med hög köpkraft och reellt inflytande över inköpsbeslut i industri och offentlig sektor." },
+    ],
+  },
+  nyteknik: {
+    name: "Ny Teknik Education",
+    tagline: "Teknik, innovation och utbildning",
+    url: "nyteknik.se",
+    primary: "#1A3A8F",
+    accent: "#E53935",
+    dark: "#0D1F5C",
+    bg: "#EBF0FB",
+    why: [
+      { title: "Tekniksverigets mötesplats", desc: "Ledande medium för ingenjörer, tekniker och innovatörer i hela landet med en av de starkaste varumärkena i branschen." },
+      { title: "Innovation och utbildning", desc: "Täcker hela spannet – från grundforskning till kommersialisering, utbildning och karriärutveckling." },
+      { title: "Ung och köpstark målgrupp", desc: "Når nästa generations ingenjörer och techbolag tidigt i köpprocessen och karriären." },
+      { title: "Bred digital räckvidd", desc: "Miljontals sidvisningar per månad och ett starkt engagerat community av tekniknördar och innovatörer." },
+    ],
+  },
+  dagenssamhalle: {
+    name: "Dagens Samhälle",
+    tagline: "Politik och offentlig sektor",
+    url: "dagenssamhalle.se",
+    primary: "#1B4F8A",
+    accent: "#F44336",
+    dark: "#0E2D52",
+    bg: "#E8F0FB",
+    why: [
+      { title: "Politikens puls", desc: "Sveriges ledande medium för offentlig sektor, kommunalpolitik och samhällsfrågor – där besluten fattas." },
+      { title: "Nyckelbeslutsfattare", desc: "Når kommunalråd, regionpolitiker, förvaltningschefer och offentliga tjänstemän i hela landet." },
+      { title: "Granskande journalistik", desc: "Oberoende och djupgående nyhetsbevakning som politiken och allmänheten litar på sedan lång tid." },
+      { title: "Trovärdig annonsplattform", desc: "Syns i ett sammanhang med stark trovärdighet – perfekt för aktörer som vill påverka politiken." },
+    ],
+  },
+};
+
+// ─── Product catalog ──────────────────────────────────────────────────────────
+const CATALOG = [
+  {
+    key: "print",
+    label: "Annons i print",
+    icon: "📰",
+    items: [
+      { name: "Helsida 4-färg", price: 62900, unit: "st" },
+      { name: "Halvsida 4-färg", price: 41100, unit: "st" },
+      { name: "Kvartssida 4-färg", price: 27400, unit: "st" },
+      { name: "Uppslag (2 sidor)", price: 91000, unit: "st" },
+      { name: "Baksida", price: 80100, unit: "st" },
+      { name: "Omslag insida", price: 71900, unit: "st" },
+    ],
+  },
+  {
+    key: "digital",
+    label: "Digital annonsering",
+    icon: "💻",
+    items: [
+      { name: "Panorama / Takeover", price: 94000, unit: "vecka" },
+      { name: "Stor banner (980×240)", price: 62000, unit: "vecka" },
+      { name: "Sidebar (300×250)", price: 29000, unit: "vecka" },
+      { name: "Native artikel", price: 45000, unit: "st" },
+      { name: "Nyhetsbrev — toppbanner", price: 30000, unit: "utskick" },
+      { name: "Nyhetsbrev — textlänk", price: 20000, unit: "utskick" },
+    ],
+  },
+  {
+    key: "sponsrat",
+    label: "Sponsrat innehåll",
+    icon: "✍️",
+    items: [
+      { name: "Sponsrad artikel (print)", price: 55000, unit: "st" },
+      { name: "Sponsrad artikel (digital)", price: 35000, unit: "st" },
+      { name: "Whitepaperpaket", price: 75000, unit: "st" },
+      { name: "Videoproduktion + publicering", price: 90000, unit: "st" },
+      { name: "Podd-sponsring", price: 40000, unit: "avsnitt" },
+    ],
+  },
+  {
+    key: "event",
+    label: "Event & Seminarium",
+    icon: "🎤",
+    items: [
+      { name: "Huvudsponsor", price: 150000, unit: "event" },
+      { name: "Utställarplats", price: 35000, unit: "event" },
+      { name: "Seminarieslot (30 min)", price: 45000, unit: "event" },
+      { name: "Branded lounge", price: 60000, unit: "event" },
+      { name: "Goodie bag-insert", price: 15000, unit: "st" },
+    ],
+  },
+];
+
+// ─── Main component ───────────────────────────────────────────────────────────
+export default function OffertVerktyg() {
+  const [brandKey, setBrandKey] = useState("lakartidningen");
+  const [customer, setCustomer] = useState({ company: "", contact: "", date: todayStr, validUntil: plusDays(30) });
+  const [seller, setSeller] = useState({ name: "David Andréasson", title: "Säljansvarig", email: "lakartidningen@informa.se", phone: "070-633 08 12" });
+  const [rows, setRows] = useState([]);
+  const [message, setMessage] = useState("");
+  const [activeCat, setActiveCat] = useState("print");
+  const [offerNo] = useState(() => "OFF-" + new Date().getFullYear() + "-" + String(Math.floor(Math.random() * 9000) + 1000));
+
+  const brand = BRANDS[brandKey];
+  const P = brand.primary;
+  const A = brand.accent;
+
+  const addRow = (item, catLabel) => {
+    setRows(prev => [...prev, { id: uid(), name: item.name, category: catLabel, qty: 1, unit: item.unit, price: item.price, discount: 0 }]);
+  };
+  const updRow = (id, field, val) => setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
+  const delRow = (id) => setRows(prev => prev.filter(r => r.id !== id));
+  const applyGlobalDiscount = (pct) => setRows(prev => prev.map(r => ({ ...r, discount: pct })));
+  const clearDiscounts = () => setRows(prev => prev.map(r => ({ ...r, discount: 0 })));
+  const QUICK_DISCOUNTS = [5, 10, 15, 20, 25, 30];
+
+  const totalBefore = rows.reduce((s, r) => s + r.qty * r.price, 0);
+  const totalAfter = rows.reduce((s, r) => s + rowAmt(r), 0);
+  const totalDiscount = totalBefore - totalAfter;
+  const hasDiscount = totalDiscount > 0.01;
+
+  const handlePrint = () => window.print();
+
+  const inp = (extra = {}) => ({
+    style: {
+      width: "100%", padding: "6px 10px", border: "1px solid #D1D5DB",
+      borderRadius: 6, fontSize: 13, outline: "none", background: "#fff",
+      boxSizing: "border-box", ...extra,
+    },
+  });
+
+  return (
+    <>
+      {/* ── Global styles ── */}
+      <style>{`
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F3F4F6; }
+        input:focus, textarea:focus, select:focus { outline: 2px solid ${P}40; border-color: ${P} !important; }
+        .cat-btn { transition: background 0.15s, transform 0.1s; }
+        .cat-btn:hover { filter: brightness(0.93); transform: translateY(-1px); }
+        .remove-btn { opacity: 0.4; transition: opacity 0.15s; }
+        .remove-btn:hover { opacity: 1; }
+        .brand-tab { cursor: pointer; transition: all 0.2s; }
+
+        /* ── Print styles ── */
+        @media print {
+          .no-print { display: none !important; }
+          .print-doc { display: block !important; }
+          body { background: white; }
+          @page { margin: 15mm 18mm; size: A4; }
+        }
+        .print-doc { display: none; }
+      `}</style>
+
+      {/* ════════════════════════════════════════════════════
+          SCREEN VIEW
+      ════════════════════════════════════════════════════ */}
+      <div className="no-print" style={{ minHeight: "100vh", background: "#F3F4F6" }}>
+
+        {/* ── Top header bar ── */}
+        <div style={{ background: P, color: "#fff", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 8px rgba(0,0,0,0.15)", position: "sticky", top: 0, zIndex: 100, minHeight: 56 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ fontWeight: 800, fontSize: 20, letterSpacing: "-0.5px", color: "#fff" }}>INFORMA</div>
+            <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.3)" }} />
+            <div style={{ fontSize: 13, opacity: 0.9 }}>Offertverktyg</div>
+          </div>
+          <button onClick={handlePrint} style={{ background: A, color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            ⬇ Exportera PDF
+          </button>
+        </div>
+
+        {/* ── Brand selector ── */}
+        <div style={{ background: brand.dark, padding: "12px 24px", display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+          <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, fontWeight: 600, marginRight: 4, whiteSpace: "nowrap" }}>VARUMÄRKE:</span>
+          {Object.entries(BRANDS).map(([key, b]) => (
+            <button key={key} className="brand-tab" onClick={() => setBrandKey(key)} style={{
+              padding: "6px 16px", borderRadius: 20, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
+              background: brandKey === key ? "#fff" : "rgba(255,255,255,0.12)",
+              color: brandKey === key ? b.primary : "rgba(255,255,255,0.85)",
+              boxShadow: brandKey === key ? "0 2px 8px rgba(0,0,0,0.2)" : "none",
+            }}>
+              {b.name}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Brand hero strip ── */}
+        <div style={{ background: brand.bg, borderBottom: `3px solid ${P}`, padding: "10px 24px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ fontSize: 22, fontWeight: 900, color: P, letterSpacing: "-0.5px" }}>{brand.name}</div>
+          <div style={{ width: 1, height: 20, background: P + "40" }} />
+          <div style={{ fontSize: 13, color: brand.dark, opacity: 0.7 }}>{brand.tagline}</div>
+        </div>
+
+        {/* ── Main layout ── */}
+        <div style={{ display: "flex", gap: 0, maxWidth: 1400, margin: "0 auto" }}>
+
+          {/* ── LEFT SIDEBAR ── */}
+          <div style={{ width: 280, minWidth: 280, background: "#fff", borderRight: "1px solid #E5E7EB", padding: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+
+            {/* Customer */}
+            <Section title="Kunduppgifter" color={P}>
+              <Field label="Företag"><input {...inp()} placeholder="Företagsnamn" value={customer.company} onChange={e => setCustomer(p => ({ ...p, company: e.target.value }))} /></Field>
+              <Field label="Kontaktperson"><input {...inp()} placeholder="Namn" value={customer.contact} onChange={e => setCustomer(p => ({ ...p, contact: e.target.value }))} /></Field>
+              <Field label="Offertdatum"><input {...inp()} type="date" value={customer.date} onChange={e => setCustomer(p => ({ ...p, date: e.target.value }))} /></Field>
+              <Field label="Giltig t.o.m."><input {...inp()} type="date" value={customer.validUntil} onChange={e => setCustomer(p => ({ ...p, validUntil: e.target.value }))} /></Field>
+            </Section>
+
+            {/* Seller */}
+            <Section title="Säljaruppgifter" color={P}>
+              <Field label="Namn"><input {...inp()} value={seller.name} onChange={e => setSeller(p => ({ ...p, name: e.target.value }))} /></Field>
+              <Field label="Titel"><input {...inp()} value={seller.title} onChange={e => setSeller(p => ({ ...p, title: e.target.value }))} /></Field>
+              <Field label="E-post"><input {...inp()} type="email" value={seller.email} onChange={e => setSeller(p => ({ ...p, email: e.target.value }))} /></Field>
+              <Field label="Telefon"><input {...inp()} value={seller.phone} onChange={e => setSeller(p => ({ ...p, phone: e.target.value }))} /></Field>
+            </Section>
+
+            {/* Product catalog */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Produktkatalog</div>
+              {/* Category tabs */}
+              <div style={{ display: "flex", gap: 4, marginBottom: 10, flexWrap: "wrap" }}>
+                {CATALOG.map(cat => (
+                  <button key={cat.key} onClick={() => setActiveCat(cat.key)} style={{
+                    padding: "4px 10px", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600,
+                    background: activeCat === cat.key ? P : "#F3F4F6",
+                    color: activeCat === cat.key ? "#fff" : "#374151",
+                  }}>
+                    {cat.icon} {cat.key === activeCat ? cat.label : cat.icon}
+                  </button>
+                ))}
+              </div>
+              {CATALOG.filter(cat => cat.key === activeCat).map(cat => (
+                <div key={cat.key}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: P, marginBottom: 6 }}>{cat.icon} {cat.label}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {cat.items.map(item => (
+                      <button key={item.name} className="cat-btn" onClick={() => addRow(item, cat.label)} style={{
+                        padding: "7px 10px", borderRadius: 6, border: `1px solid ${P}30`,
+                        background: brand.bg, cursor: "pointer", textAlign: "left", fontSize: 12,
+                        display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4,
+                      }}>
+                        <span style={{ fontWeight: 500, color: "#1F2937" }}>+ {item.name}</span>
+                        <span style={{ color: P, fontWeight: 700, whiteSpace: "nowrap", fontSize: 11 }}>{item.price.toLocaleString("sv-SE")}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── RIGHT MAIN ── */}
+          <div style={{ flex: 1, padding: 24, display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
+
+            {/* Quote rows */}
+            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.08)", overflow: "hidden" }}>
+              <div style={{ padding: "14px 20px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <div style={{ width: 4, height: 18, borderRadius: 2, background: P }} />
+                <span style={{ fontWeight: 700, fontSize: 15, color: "#111827" }}>Offertrad</span>
+                {rows.length > 0 && (
+                  <>
+                    <span style={{ marginLeft: "auto", fontSize: 12, color: "#6B7280" }}>{rows.length} {rows.length === 1 ? "rad" : "rader"}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 12 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", whiteSpace: "nowrap" }}>Snabbrabatt:</span>
+                      {QUICK_DISCOUNTS.map(pct => {
+                        const active = rows.length > 0 && rows.every(r => r.discount === pct);
+                        return (
+                          <button key={pct} onClick={() => active ? clearDiscounts() : applyGlobalDiscount(pct)} style={{
+                            padding: "3px 10px", borderRadius: 20, border: `1.5px solid ${active ? P : "#E5E7EB"}`,
+                            background: active ? P : "#fff", color: active ? "#fff" : "#374151",
+                            fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.15s",
+                          }}>
+                            {pct}%
+                          </button>
+                        );
+                      })}
+                      {rows.some(r => r.discount > 0) && (
+                        <button onClick={clearDiscounts} style={{ padding: "3px 10px", borderRadius: 20, border: "1.5px solid #FCA5A5", background: "#FEF2F2", color: "#EF4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          Nollställ
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {rows.length === 0 ? (
+                <div style={{ padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 14 }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+                  Klicka på produkter i katalogen för att lägga till offertrader
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+                        {["Produkt / Kategori", "Antal", "Enhet", "À-pris (kr)", "Rabatt %", "Summa", ""].map((h, i) => (
+                          <th key={i} style={{ padding: "10px 12px", textAlign: i >= 5 ? "right" : "left", fontWeight: 600, color: "#6B7280", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((r, i) => (
+                        <tr key={r.id} style={{ borderBottom: "1px solid #F3F4F6", background: i % 2 === 0 ? "#fff" : "#FAFAFA" }}>
+                          <td style={{ padding: "10px 12px", minWidth: 160 }}>
+                            <div style={{ fontWeight: 600, color: "#111827" }}>{r.name}</div>
+                            <div style={{ fontSize: 11, color: "#9CA3AF" }}>{r.category}</div>
+                          </td>
+                          <td style={{ padding: "6px 8px" }}>
+                            <input type="number" min="1" value={r.qty} onChange={e => updRow(r.id, "qty", Math.max(1, parseInt(e.target.value) || 1))}
+                              style={{ width: 60, padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 13, textAlign: "center" }} />
+                          </td>
+                          <td style={{ padding: "6px 8px" }}>
+                            <input value={r.unit} onChange={e => updRow(r.id, "unit", e.target.value)}
+                              style={{ width: 80, padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 13 }} />
+                          </td>
+                          <td style={{ padding: "6px 8px" }}>
+                            <input type="number" min="0" value={r.price} onChange={e => updRow(r.id, "price", Math.max(0, parseInt(e.target.value) || 0))}
+                              style={{ width: 100, padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 13, textAlign: "right" }} />
+                          </td>
+                          <td style={{ padding: "6px 8px" }}>
+                            <input type="number" min="0" max="100" value={r.discount} onChange={e => updRow(r.id, "discount", Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                              style={{ width: 64, padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 13, textAlign: "center", background: r.discount > 0 ? "#FFFBEB" : "#fff" }} />
+                          </td>
+                          <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 700, color: "#111827", whiteSpace: "nowrap" }}>
+                            {rowAmt(r).toLocaleString("sv-SE")} kr
+                          </td>
+                          <td style={{ padding: "6px 8px", textAlign: "center" }}>
+                            <button className="remove-btn" onClick={() => delRow(r.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#EF4444", padding: "2px 6px" }}>×</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Totals */}
+              {rows.length > 0 && (
+                <div style={{ padding: "16px 20px", borderTop: `2px solid ${P}20`, display: "flex", justifyContent: "flex-end" }}>
+                  <div style={{ minWidth: 280 }}>
+                    {hasDiscount && (
+                      <>
+                        <TotalRow label="Ordinarie pris" value={fmt(totalBefore)} muted />
+                        <TotalRow label="Total rabatt" value={"– " + fmt(totalDiscount)} highlight color="#EF4444" />
+                      </>
+                    )}
+                    <div style={{ borderTop: `2px solid ${P}`, marginTop: 8, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontWeight: 800, fontSize: 15, color: "#111827" }}>Totalt exkl. moms</span>
+                      <span style={{ fontWeight: 900, fontSize: 20, color: P }}>{fmt(totalAfter)}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#9CA3AF", textAlign: "right", marginTop: 4 }}>Alla priser exkl. moms</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Personal message */}
+            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.08)", overflow: "hidden" }}>
+              <div style={{ padding: "14px 20px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 4, height: 18, borderRadius: 2, background: A }} />
+                <span style={{ fontWeight: 700, fontSize: 15, color: "#111827" }}>Personligt meddelande</span>
+              </div>
+              <div style={{ padding: 16 }}>
+                <textarea rows={4} placeholder="Skriv ett personligt meddelande till kunden..." value={message} onChange={e => setMessage(e.target.value)}
+                  style={{ width: "100%", padding: "10px 12px", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 13, resize: "vertical", fontFamily: "inherit", lineHeight: 1.6 }} />
+              </div>
+            </div>
+
+            {/* Why choose us */}
+            <div style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.08)", overflow: "hidden" }}>
+              <div style={{ padding: "14px 20px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 4, height: 18, borderRadius: 2, background: P }} />
+                <span style={{ fontWeight: 700, fontSize: 15, color: "#111827" }}>Varför välja {brand.name}?</span>
+              </div>
+              <div style={{ padding: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+                {brand.why.map((w, i) => (
+                  <div key={i} style={{ padding: 14, borderRadius: 10, background: brand.bg, border: `1px solid ${P}25` }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: P, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, marginBottom: 8 }}>{i + 1}</div>
+                    <div style={{ fontWeight: 700, color: brand.dark, marginBottom: 4, fontSize: 13 }}>{w.title}</div>
+                    <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>{w.desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════════
+          PRINT DOCUMENT
+      ════════════════════════════════════════════════════ */}
+      <div className="print-doc" style={{ background: "#fff", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+        <style>{`
+          .print-doc { color: #111; }
+          .print-doc table { border-collapse: collapse; width: 100%; }
+          .print-doc th, .print-doc td { padding: 8px 10px; font-size: 12px; }
+          .print-doc th { background: #F9FAFB; font-weight: 600; color: #6B7280; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; }
+          .print-doc tr { border-bottom: 1px solid #F0F0F0; }
+          .print-doc .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+          .print-doc .why-card { padding: 12px; border-radius: 8px; border: 1px solid ${P}30; background: ${brand.bg}; }
+        `}</style>
+
+        {/* Print header */}
+        <div style={{ background: P, color: "#fff", padding: "22px 32px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-1px", marginBottom: 2 }}>{brand.name}</div>
+            <div style={{ opacity: 0.8, fontSize: 13 }}>{brand.tagline}</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: 2, opacity: 0.9 }}>OFFERT</div>
+            <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>{offerNo}</div>
+          </div>
+        </div>
+        <div style={{ height: 4, background: A }} />
+
+        {/* Info row */}
+        <div style={{ padding: "20px 32px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, borderBottom: "1px solid #E5E7EB" }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Till</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "#111" }}>{customer.company || "—"}</div>
+            <div style={{ color: "#374151", fontSize: 13, marginTop: 2 }}>{customer.contact || ""}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Offertuppgifter</div>
+            <PrintInfoRow label="Offertdatum" value={customer.date} />
+            <PrintInfoRow label="Giltig t.o.m." value={customer.validUntil} />
+            <PrintInfoRow label="Offert nr" value={offerNo} />
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #F3F4F6" }}>
+              <div style={{ fontWeight: 700, color: "#111", fontSize: 13 }}>{seller.name}</div>
+              <div style={{ fontSize: 12, color: "#6B7280" }}>{seller.title} · {seller.email} · {seller.phone}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quote table */}
+        <div style={{ padding: "20px 32px" }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: P, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>Offertspecifikation</div>
+          {rows.length === 0 ? (
+            <div style={{ padding: 20, textAlign: "center", color: "#9CA3AF", fontSize: 13, border: "1px dashed #E5E7EB", borderRadius: 8 }}>Inga offertrader tillagda</div>
+          ) : (
+            <table>
+              <thead>
+                <tr style={{ borderBottom: `2px solid ${P}` }}>
+                  <th style={{ textAlign: "left", width: "35%" }}>Produkt</th>
+                  <th style={{ textAlign: "left" }}>Kategori</th>
+                  <th style={{ textAlign: "center" }}>Antal</th>
+                  <th style={{ textAlign: "left" }}>Enhet</th>
+                  <th style={{ textAlign: "right" }}>À-pris</th>
+                  <th style={{ textAlign: "right" }}>Rabatt</th>
+                  <th style={{ textAlign: "right" }}>Summa</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={r.id} style={{ background: i % 2 === 0 ? "#fff" : "#FAFAFA" }}>
+                    <td style={{ fontWeight: 600, color: "#111" }}>{r.name}</td>
+                    <td style={{ color: "#6B7280", fontSize: 11 }}>{r.category}</td>
+                    <td style={{ textAlign: "center" }}>{r.qty}</td>
+                    <td style={{ color: "#6B7280" }}>{r.unit}</td>
+                    <td style={{ textAlign: "right" }}>{r.price.toLocaleString("sv-SE")} kr</td>
+                    <td style={{ textAlign: "right", color: r.discount > 0 ? "#F59E0B" : "#9CA3AF" }}>{r.discount > 0 ? r.discount + "%" : "—"}</td>
+                    <td style={{ textAlign: "right", fontWeight: 700, color: "#111" }}>{rowAmt(r).toLocaleString("sv-SE")} kr</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {/* Print totals */}
+          {rows.length > 0 && (
+            <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
+              <div style={{ minWidth: 280 }}>
+                {hasDiscount && (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#6B7280", padding: "3px 0" }}>
+                      <span>Ordinarie pris</span><span>{fmt(totalBefore)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "#EF4444", padding: "3px 0" }}>
+                      <span>Total rabatt</span><span>– {fmt(totalDiscount)}</span>
+                    </div>
+                  </>
+                )}
+                <div style={{ borderTop: `2px solid ${P}`, marginTop: 8, paddingTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontWeight: 800, fontSize: 14 }}>Totalt exkl. moms</span>
+                  <span style={{ fontWeight: 900, fontSize: 20, color: P }}>{fmt(totalAfter)}</span>
+                </div>
+                <div style={{ fontSize: 10, color: "#9CA3AF", textAlign: "right", marginTop: 4 }}>Alla priser exkl. moms</div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Personal message */}
+        {message && (
+          <div style={{ margin: "0 32px 20px", padding: 16, background: brand.bg, borderRadius: 10, borderLeft: `4px solid ${P}` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: P, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Meddelande från {seller.name}</div>
+            <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{message}</div>
+          </div>
+        )}
+
+        {/* Why choose us */}
+        <div style={{ margin: "0 32px 24px" }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: P, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.5 }}>Varför välja {brand.name}?</div>
+          <div className="why-grid">
+            {brand.why.map((w, i) => (
+              <div key={i} className="why-card">
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                  <div style={{ width: 24, height: 24, borderRadius: "50%", background: P, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, flexShrink: 0 }}>{i + 1}</div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 12, color: brand.dark, marginBottom: 3 }}>{w.title}</div>
+                    <div style={{ fontSize: 11, color: "#374151", lineHeight: 1.5 }}>{w.desc}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Print footer */}
+        <div style={{ background: brand.dark, color: "rgba(255,255,255,0.85)", padding: "14px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "auto" }}>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: "#fff" }}>Informa AB</div>
+            <div style={{ fontSize: 11, opacity: 0.7 }}>informa.se</div>
+          </div>
+          <div style={{ textAlign: "center", opacity: 0.6, fontSize: 11 }}>{brand.name} · {brand.tagline}</div>
+          <div style={{ textAlign: "right", fontSize: 11 }}>
+            <div>{seller.name}</div>
+            <div style={{ opacity: 0.7 }}>{seller.email} · {seller.phone}</div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Small helper components ─────────────────────────────────────────────────
+function Section({ title, color, children }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: color, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ width: 3, height: 12, borderRadius: 2, background: color }} />
+        {title}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 3 }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function TotalRow({ label, value, muted, color }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "3px 0", color: color || (muted ? "#9CA3AF" : "#374151") }}>
+      <span>{label}</span>
+      <span style={{ fontWeight: muted ? 400 : 600 }}>{value}</span>
+    </div>
+  );
+}
+
+function PrintInfoRow({ label, value }) {
+  return (
+    <div style={{ display: "flex", gap: 8, fontSize: 12, marginBottom: 3 }}>
+      <span style={{ color: "#9CA3AF", minWidth: 90 }}>{label}:</span>
+      <span style={{ fontWeight: 600, color: "#111" }}>{value || "—"}</span>
+    </div>
+  );
+}
