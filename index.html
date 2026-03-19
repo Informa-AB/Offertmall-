@@ -148,7 +148,7 @@
       const A = brand.accent;
       const QUICK_DISCOUNTS = [5, 10, 15, 20, 25, 30];
 
-      const addRow = (item, catLabel) => setRows(prev => [...prev, { id: uid(), name: item.name, category: catLabel, qty: 1, unit: item.unit, price: item.price, discount: 0 }]);
+      const addRow = (item, catLabel) => setRows(prev => [...prev, { id: uid(), name: item.name, category: catLabel, qty: 1, unit: item.unit, price: item.price, discount: 0, edition: "" }]);
       const updRow = (id, field, val) => setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: val } : r));
       const delRow = (id) => setRows(prev => prev.filter(r => r.id !== id));
       const applyGlobalDiscount = (pct) => setRows(prev => prev.map(r => ({ ...r, discount: pct })));
@@ -350,9 +350,15 @@
                         <tbody>
                           {rows.map((r, i) => (
                             <tr key={r.id} style={{ borderBottom: "1px solid #F3F4F6", background: i % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                              <td style={{ padding: "10px 12px", minWidth: 160 }}>
+                              <td style={{ padding: "10px 12px", minWidth: 180 }}>
                                 <div style={{ fontWeight: 600, color: "#111827" }}>{r.name}</div>
                                 <div style={{ fontSize: 11, color: "#9CA3AF" }}>{r.category}</div>
+                                <input
+                                  value={r.edition}
+                                  onChange={e => updRow(r.id, "edition", e.target.value)}
+                                  placeholder="Utgåva / vecka (valfritt)"
+                                  style={{ marginTop: 5, width: "100%", padding: "3px 7px", border: "1px dashed #D1D5DB", borderRadius: 4, fontSize: 11, color: "#374151", background: r.edition ? "#FFFBEB" : "#fafafa", outline: "none" }}
+                                />
                               </td>
                               <td style={{ padding: "6px 8px" }}>
                                 <input type="number" min="1" value={r.qty} onChange={e => updRow(r.id, "qty", Math.max(1, parseInt(e.target.value) || 1))}
@@ -499,7 +505,10 @@
                   <tbody>
                     {rows.map((r, i) => (
                       <tr key={r.id} style={{ background: i % 2 === 0 ? "#fff" : "#FAFAFA" }}>
-                        <td style={{ fontWeight: 600, color: "#111" }}>{r.name}</td>
+                        <td style={{ fontWeight: 600, color: "#111" }}>
+                          {r.name}
+                          {r.edition && <div style={{ fontSize: 10, fontWeight: 400, color: "#6B7280", marginTop: 2 }}>📅 {r.edition}</div>}
+                        </td>
                         <td style={{ color: "#6B7280", fontSize: 11 }}>{r.category}</td>
                         <td style={{ textAlign: "center" }}>{r.qty}</td>
                         <td style={{ color: "#6B7280" }}>{r.unit}</td>
