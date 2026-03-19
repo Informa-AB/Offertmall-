@@ -7,6 +7,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F3F4F6; }
@@ -139,6 +141,7 @@
       const [message, setMessage] = useState("");
       const [activeCat, setActiveCat] = useState("print");
       const [offerNo] = useState(() => "OFF-" + new Date().getFullYear() + "-" + String(Math.floor(Math.random() * 9000) + 1000));
+      const [exporting, setExporting] = useState(false);
 
       const brand = BRANDS[brandKey];
       const P = brand.primary;
@@ -155,6 +158,38 @@
       const totalAfter = rows.reduce((s, r) => s + rowAmt(r), 0);
       const totalDiscount = totalBefore - totalAfter;
       const hasDiscount = totalDiscount > 0.01;
+
+      const exportPDF = async () => {
+        setExporting(true);
+        try {
+          const printEl = document.querySelector('.print-doc');
+          printEl.style.display = 'block';
+          await new Promise(r => setTimeout(r, 100));
+          const canvas = await html2canvas(printEl, { scale: 2, useCORS: true, logging: false });
+          printEl.style.display = 'none';
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          const pdfW = pdf.internal.pageSize.getWidth();
+          const pdfH = pdf.internal.pageSize.getHeight();
+          const imgH = (canvas.height * pdfW) / canvas.width;
+          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+          let remaining = imgH;
+          let pos = 0;
+          pdf.addImage(imgData, 'JPEG', 0, pos, pdfW, imgH);
+          remaining -= pdfH;
+          while (remaining > 0) {
+            pos -= pdfH;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, pos, pdfW, imgH);
+            remaining -= pdfH;
+          }
+          const fname = `Offert_${(customer.company || 'Informa').replace(/\s+/g,'_')}_${offerNo}.pdf`;
+          pdf.save(fname);
+        } catch(e) {
+          alert('Något gick fel vid PDF-generering: ' + e.message);
+        }
+        setExporting(false);
+      };
 
       const inp = (extra = {}) => ({
         style: { width: "100%", padding: "6px 10px", border: "1px solid #D1D5DB", borderRadius: 6, fontSize: 13, background: "#fff", boxSizing: "border-box", ...extra },
@@ -189,8 +224,8 @@
                 <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.3)" }} />
                 <div style={{ fontSize: 13, opacity: 0.9 }}>Offertverktyg</div>
               </div>
-              <button onClick={() => window.print()} style={{ background: A, color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-                ⬇ Exportera PDF
+              <button onClick={exportPDF} disabled={exporting} style={{ background: exporting ? "#9CA3AF" : A, color: "#fff", border: "none", borderRadius: 8, padding: "8px 20px", fontWeight: 700, fontSize: 13, cursor: exporting ? "wait" : "pointer", transition: "background 0.2s" }}>
+                {exporting ? "⏳ Genererar PDF..." : "⬇ Exportera PDF"}
               </button>
             </div>
 
