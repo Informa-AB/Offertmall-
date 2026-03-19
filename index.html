@@ -23,23 +23,35 @@
     const todayStr = new Date().toISOString().split("T")[0];
     const plusDays = (n) => new Date(Date.now() + n * 86400000).toISOString().split("T")[0];
 
-    // Generate week options with approximate month label
-    const MONTHS_SV = ["jan","feb","mar","apr","maj","jun","jul","aug","sep","okt","nov","dec"];
-    function weekDate(w, year) {
-      const d = new Date(year, 0, 1 + (w - 1) * 7);
-      const day = d.getDay();
-      const mon = new Date(d);
-      mon.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-      return MONTHS_SV[mon.getMonth()];
-    }
-    const CUR_YEAR = new Date().getFullYear();
-    const WEEK_OPTIONS = Array.from({length: 52}, (_, i) => {
+    // Läkartidningen 2026 – verklig utgivningsplan
+    const PRINT_EDITIONS = [
+      { value: "Nr 1-4 (utg. 14 jan)",   label: "Nr 1-4   –  utg. 14 jan  (bokning senast 07 jan)" },
+      { value: "Nr 5-6 (utg. 28 jan)",   label: "Nr 5-6   –  utg. 28 jan  (bokning senast 20 jan)" },
+      { value: "Nr 7-8 (utg. 11 feb)",   label: "Nr 7-8   –  utg. 11 feb  (bokning senast 03 feb)" },
+      { value: "Nr 9-10 (utg. 25 feb)",  label: "Nr 9-10  –  utg. 25 feb  (bokning senast 17 feb)" },
+      { value: "Nr 11-12 (utg. 11 mar)", label: "Nr 11-12 –  utg. 11 mar  (bokning senast 03 mar)" },
+      { value: "Nr 13-14 (utg. 25 mar)", label: "Nr 13-14 –  utg. 25 mar  (bokning senast 17 mar)" },
+      { value: "Nr 15-16 (utg. 08 apr)", label: "Nr 15-16 –  utg. 08 apr  (bokning senast 30 mar)" },
+      { value: "Nr 17-18 (utg. 22 apr)", label: "Nr 17-18 –  utg. 22 apr  (bokning senast 14 apr)" },
+      { value: "Nr 19-20 (utg. 06 maj)", label: "Nr 19-20 –  utg. 06 maj  (bokning senast 28 apr)" },
+      { value: "Nr 21-22 (utg. 20 maj)", label: "Nr 21-22 –  utg. 20 maj  (bokning senast 12 maj)" },
+      { value: "Nr 23-24 (utg. 03 jun)", label: "Nr 23-24 –  utg. 03 jun  (bokning senast 26 maj)" },
+      { value: "Nr 25-32 (utg. 17 jun)", label: "Nr 25-32 –  utg. 17 jun  (bokning senast 09 jun)" },
+      { value: "Nr 33-34 (utg. 12 aug)", label: "Nr 33-34 –  utg. 12 aug  (bokning senast 04 aug)" },
+      { value: "Nr 35-36 (utg. 26 aug)", label: "Nr 35-36 –  utg. 26 aug  (bokning senast 18 aug)" },
+      { value: "Nr 37-38 (utg. 09 sep)", label: "Nr 37-38 –  utg. 09 sep  (bokning senast 01 sep)" },
+      { value: "Nr 39-40 (utg. 23 sep)", label: "Nr 39-40 –  utg. 23 sep  (bokning senast 15 sep)" },
+      { value: "Nr 41-42 (utg. 07 okt)", label: "Nr 41-42 –  utg. 07 okt  (bokning senast 29 sep)" },
+      { value: "Nr 43-44 (utg. 21 okt)", label: "Nr 43-44 –  utg. 21 okt  (bokning senast 13 okt)" },
+      { value: "Nr 45-46 (utg. 04 nov)", label: "Nr 45-46 –  utg. 04 nov  (bokning senast 27 okt)" },
+      { value: "Nr 47-49 (utg. 18 nov)", label: "Nr 47-49 –  utg. 18 nov  (bokning senast 10 nov)" },
+      { value: "Nr 50-53 (utg. 09 dec)", label: "Nr 50-53 –  utg. 09 dec  (bokning senast 01 dec)" },
+    ];
+
+    // Veckor för digital annonsering
+    const DIGITAL_WEEKS = Array.from({length: 52}, (_, i) => {
       const w = i + 1;
-      return { value: `Vecka ${w} / ${CUR_YEAR}`, label: `Vecka ${w}  (${weekDate(w, CUR_YEAR)} ${CUR_YEAR})` };
-    });
-    const ISSUE_OPTIONS = Array.from({length: 24}, (_, i) => {
-      const n = i + 1;
-      return { value: `Nr ${n} / ${CUR_YEAR}`, label: `Nr ${n} / ${CUR_YEAR}` };
+      return { value: `Vecka ${w} / 2026`, label: `Vecka ${w} / 2026` };
     });
     let _id = 0;
     const uid = () => ++_id;
@@ -372,19 +384,26 @@
                               <td style={{ padding: "10px 12px", minWidth: 180 }}>
                                 <div style={{ fontWeight: 600, color: "#111827" }}>{r.name}</div>
                                 <div style={{ fontSize: 11, color: "#9CA3AF" }}>{r.category}</div>
-                                <select
-                                  value={r.edition}
-                                  onChange={e => updRow(r.id, "edition", e.target.value)}
-                                  style={{ marginTop: 5, width: "100%", padding: "3px 7px", border: `1px solid ${r.edition ? P : "#D1D5DB"}`, borderRadius: 4, fontSize: 11, color: r.edition ? "#374151" : "#9CA3AF", background: r.edition ? "#FFFBEB" : "#fafafa", outline: "none", cursor: "pointer" }}
-                                >
-                                  <option value="">— Välj utgåva / vecka —</option>
-                                  <optgroup label="Veckonummer">
-                                    {WEEK_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                  </optgroup>
-                                  <optgroup label="Utgåva (print)">
-                                    {ISSUE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                  </optgroup>
-                                </select>
+                                {(r.category === "Annons i print" || r.category === "Sponsrat innehåll") && (
+                                  <select
+                                    value={r.edition}
+                                    onChange={e => updRow(r.id, "edition", e.target.value)}
+                                    style={{ marginTop: 5, width: "100%", padding: "3px 7px", border: `1px solid ${r.edition ? P : "#D1D5DB"}`, borderRadius: 4, fontSize: 11, color: r.edition ? "#374151" : "#9CA3AF", background: r.edition ? "#FFFBEB" : "#fafafa", outline: "none", cursor: "pointer" }}
+                                  >
+                                    <option value="">— Välj utgåva —</option>
+                                    {PRINT_EDITIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                  </select>
+                                )}
+                                {r.category === "Digital annonsering" && (
+                                  <select
+                                    value={r.edition}
+                                    onChange={e => updRow(r.id, "edition", e.target.value)}
+                                    style={{ marginTop: 5, width: "100%", padding: "3px 7px", border: `1px solid ${r.edition ? P : "#D1D5DB"}`, borderRadius: 4, fontSize: 11, color: r.edition ? "#374151" : "#9CA3AF", background: r.edition ? "#FFFBEB" : "#fafafa", outline: "none", cursor: "pointer" }}
+                                  >
+                                    <option value="">— Välj vecka —</option>
+                                    {DIGITAL_WEEKS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                  </select>
+                                )}
                               </td>
                               <td style={{ padding: "6px 8px" }}>
                                 <input type="number" min="1" value={r.qty} onChange={e => updRow(r.id, "qty", Math.max(1, parseInt(e.target.value) || 1))}
